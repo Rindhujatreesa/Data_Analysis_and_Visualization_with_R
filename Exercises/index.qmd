@@ -1,0 +1,18 @@
+---
+title: "Practice Exercises for Building Spatial Datasets (Fall 2023)"
+listing:
+  contents:
+    - "exercise_*.qmd"
+  type: grid
+  fields: [title, date-modified, status]
+  sort: "order"
+  field-display-names:
+    date-modified: "Last updated"
+    status: "Status"
+---
+
+This is the website for your practice exercise repository. You can see an updated version of this site anytime you want by using `quarto::quarto_preview()`.
+
+Each exercise will be listed below. Make sure to change the "status" in the exercise metadata from "Available" to "Complete" when you are done with the exercise.
+
+Review the [instructions on the main course website](https://bldgspatialdata.github.io/website/course-exercises.html) for more information on committing your changes to each week's exercise.

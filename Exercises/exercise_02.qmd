@@ -1,0 +1,458 @@
+---
+title: "Exercise 02"
+order: 2
+status: Completed
+date-due: 2023-09-11
+date-modified: 2023-09-11
+---
+
+::: {.callout-important appearance="minimal" icon="true"}
+Exercise due on {{< meta date-due >}}
+:::
+
+ℹ️ See [week {{< meta order >}}](https://bldgspatialdata.github.io/website/weeks/week_0{{< meta order >}}.html) for related slides and readings
+
+## Overview
+
+::: {.callout-tip collapse="false" appearance="default" icon="true"}
+## Practice these skills
+
+-   Build a layered plot using `ggplot()`, `aes()`, and different `geom_` functions
+-   Explore the difference between discrete and continuous variables
+-   Use `coord_sf()` to modify a plot created with `geom_sf()`
+:::
+
+::: {.callout-note collapse="false" appearance="default" icon="true"}
+## Think about these questions
+
+-   What makes a scale better or worse at visualizing data?
+-   How do you write a clear and accurate title, legend, or caption?
+-   When is it appropriate to modify the geometry of your data when making a map?
+:::
+
+## Setup
+
+This exercises uses the `{ggplot2}` and `{dplyr}` packages (both from the [tidyverse family](https://www.tidyverse.org/) of packages) and the `{sf}` package:
+
+```{r}
+library(ggplot2)
+library(dplyr)
+library(sf)
+```
+
+For this week's exercise, we are also going to use data from the `{rnaturalearth}` package. Make sure to install those packages and re-start your session if these packages are not installed already:
+
+```{r}
+# pak::pkg_install(c("rnaturalearth", "rnaturalearthdata"))
+library(rnaturalearth)
+```
+
+We are going to use `ne_download()` to download the `countries` dataset and then use `st_centroid()` to make a version of this dataset where the features show the center of each country instead of the boundaries:
+
+```{r}
+countries <- ne_download(scale = "medium", type = "countries", returnclass = "sf")
+
+countries <- st_transform(countries, crs = 3857)
+
+countries_center <- st_centroid(countries)
+
+glimpse(countries)
+```
+
+Some of the following exercises don't require a sf object. You can also use the `mpg` or `storms` dataset we looked at during this week's lecture: 
+
+```{r}
+glimpse(mpg)
+
+glimpse(storms)
+```
+
+
+One advantage of using `{ggplot2}` over a map-making focused package like `{tmap}` is the wide variety of extension packages created by the large community of users and developers making data visualizations (including maps) with `{ggplot2}`.
+
+We aren't going to use some of these extension packages (and others) but we won't load them yet. Run the following code to install (and don't forget to restart your session afterwards):
+
+```{r}
+#| eval: false
+pak::pkg_install(c("patchwork", "plotly", "smoothr"))
+```
+
+If you finish this exercise but still want more practice, you can download this [RMarkdown document with exercises](https://github.com/thomasp85/ggplot2_workshop/blob/master/exercises.Rmd) shared by Thomas Lin Pedersen for his two-part 2020 online workshop on `{ggplot2}` ([part 1](https://www.youtube.com/watch?v=h29g21z0a68) and [part 2](https://www.youtube.com/watch?v=0m4yywqNPVY) are both available on YouTube).
+
+## Exercises
+
+### Plotting a single variable
+
+Find a discrete variable in countries and then create a plot with `geom_bar()`:
+
+```{r}
+ggplot(data = countries) +
+  geom_bar(mapping = aes(x = ECONOMY))
+```
+
+Next, find a continuous variable and make a plot with `geom_histogram()`:
+
+```{r}
+ggplot(data = countries) +
+  geom_histogram(mapping = aes(x = GDP_MD))
+```
+
+Now, let's make a map! Use `countries_center` and `geom_sf()` to make a map with a continuous variable mapped to size:
+
+```{r}
+ggplot(data = countries_center) +
+  geom_sf(aes(size = POP_EST)) #the size of the centroid blob is dependent on the population of the country
+```
+
+----
+
+Next, make a map with `geom_sf()` with one discrete variable mapped to color:
+
+```{r}
+ggplot(data = countries) +
+  geom_sf(aes(color = INCOME_GRP))
+```
+
+Is that the map you expected? Try it again with the discrete variable mapped to fill:
+
+```{r}
+ggplot(data = countries) +
+  geom_sf(aes(fill = INCOME_GRP))
+```
+
+----
+
+Now, make a plot using any `geom` function of your choice:
+
+```{r}
+ggplot(data = countries) +
+  geom_sf(data = countries, mapping = aes(fill = POP_EST)) +
+  coord_sf()
+```
+
+Explain in plain language. What does your map show? The map illustrates the population estimates of the countries in the world on a gradient scale.
+
+### Plotting two variables
+
+For this next section, you can continue to use `countries` as your dataset or load a different dataset using `{rnaturalearth}`. You can see what vector data is available using `rnaturalearth::ne_find_vector_data()` then find the function you need to load the data into a new object:
+
+```{r}
+rnaturalearth::ne_find_vector_data()
+```
+
+```{r}
+pop_places = ne_download(scale = 110, type = "populated_places")
+attributes(pop_places)
+pop_places_df = data.frame(pop_places, id = row.names(pop_places))
+pop_places_df
+```
+
+```{r}
+colnames(pop_places_df)
+``` 
+
+First, find two continuous variables and create a scatter plot with `geom_point()`:
+```{r}
+ggplot(data = pop_places_df) +
+  geom_point(aes(x = POP_MAX, y = POP_MIN)) +
+  coord_sf()
+```
+
+Next, look in your data for one discrete and one continuous variable then use `aes()` to set those variables for `geom_col()`. The `geom_col()` function is similar to `geom_bar()` but you *must* provide *both* an x *and* a y variable:
+
+```{r}
+ggplot(data = pop_places_df) +
+  geom_col(aes(x = RANK_MAX, y = POP_MAX))
+```
+
+Now, use `geom_sf()` mapping your continuous variable to fill or color and your discrete variable to `facet_wrap()`:
+
+```{r}
+ggplot(data = countries) +
+  geom_sf(aes(fill = INCOME_GRP, geometry = geometry)) +
+  facet_wrap(~CONTINENT, nrow = 2)
+```
+
+Finally, create a map using a different aesthetic that we haven't tried yet. Options could include `linewidth`, `size`, `alpha`, or `linetype`:
+
+```{r}
+ggplot(data = countries) +
+  geom_sf(aes(linetype = INCOME_GRP, alpha = GDP_MD), show.legend = TRUE)
+```
+
+Is this aesthetic mapping an effective way of visualizing the variable? It is not an effective way of visualization.
+
+If so, why do you think it works well? If not, why does it *not* work well? The aesthetics requires to be toned more specifically in terms of color gradients to visualize the different regions properly. Here, I tried to build a map with population estimate as the scale for transparency (alpha), however, the gray-scale is not visually 
+effective. Using linewidth/size is ineffective on the world map as it overlaps unevenly creating a chaotic map.
+### Using scales and colors
+
+ `{ggplot2}` uses naming conventions to organize the scale functions. This isn't the same for every function but they look something like: "scale_<aesthetic>_<color scheme>_<type of data>". So, `scale_fill_viridis_d()` applies the Viridis color scale to a discrete variable mapped to the fill aesthetic.
+ 
+Use the data to create a plot and take a look at the colors set when you use `scale_color_viridis_c()`:
+
+```{r}
+ggplot(countries) +
+  geom_dotplot(aes(POP_EST, INCOME_GRP, color = POP_EST)) +
+  scale_color_viridis_c()
+```
+
+The [ColorBrewer](https://colorbrewer2.org/#type=sequential&scheme=BuGn&n=3) scales are designed for use with [thematic maps](https://en.wikipedia.org/wiki/Thematic_map). Use `?scale_color_brewer()` to pull up the documentation for this function and review the information on the type and palette parameters.
+
+Now, map a variable to the `color` aesthetic for `geom_sf()` and assign an appropriate type and palette value:
+
+```{r}
+ggplot(countries) +
+  geom_sf(aes(color = ECONOMY)) +
+  scale_color_brewer(type = "div", palette = 1)
+```
+
+Switching from `color` to `fill`, try it again with a different type and palette value:
+
+```{r}
+ggplot(countries) +
+  geom_sf(aes(fill = ECONOMY)) +
+  scale_fill_brewer(type = "seq", palette = 3)
+```
+
+One last time, but we're using `scale_fill_distiller()`:
+
+```{r}
+ggplot(countries) +
+  geom_sf(aes(fill = POP_EST)) +
+  scale_fill_distiller(type = "seq", palette = 3)
+```
+
+Note that this `scale_fill_distiller()` scale only works with continuous values. If you get an error, you may need to map a different variable to `fill`.
+
+### Adding labels, legends, and themes
+
+Set the data for `ggplot()` and then use the `labs()` function to apply a title and caption that make sense:
+
+```{r}
+ggplot(data = countries) +
+  geom_sf(color = "black", fill = NA) +
+  labs(
+    title = "The World Map",
+    caption = "The outline showing the international boundaries on a world map"
+  )
+```
+
+Now, map `fill` to a variable in your data using `aes()` and then use `labs()` to assign a label for fill:
+
+```{r}
+ggplot(data = countries) +
+  geom_sf(aes(fill = ECONOMY)) +
+  labs(
+    fill = "Economic Classes"
+  )
+```
+
+Finally, put all of these elements together with a theme function. `theme_minimal()` and `theme_void()` are good themes to use for maps but you can explore [all of the options in the ggplot2 documentation](https://ggplot2.tidyverse.org/reference/ggtheme.html):
+
+```{r}
+ggplot(data = countries) +
+  geom_sf(mapping = aes(fill = POP_EST)) +
+  labs(
+    title = "POPULATION DISTRIBUTION MAP",
+    caption = "A World Map showing the population of each country",
+    fill = "Population Scale"
+  ) +
+  theme_minimal()
+```
+
+### Interactive plots with `{plotly}`
+
+We aren't doing much with interactivity in this class (or exercise) but I did want to give you a chance to try it out using the `ggplotly()` function from the `{plotly}` package:
+
+```{r}
+p <- ggplot(data = countries) +
+  geom_sf(mapping = aes(fill = POP_EST))
+  
+plotly::ggplotly(
+  p = p
+)
+```
+
+A [directory of `{ggplot2}` extensions](https://exts.ggplot2.tidyverse.org/index.html) is available through the tidyverse website if you want to try more tools for animation or interactivity including [{gganimate}](https://gganimate.com/) or [{ggiraph}](https://davidgohel.github.io/ggiraph/).
+
+### Map making with `{ggplot2}`
+
+By default, any map created with `geom_sf()` will show the graticulates on the map and axis labels with the coordinate values. Add data to this map and then hide these graticules by adding `theme_void()`:
+
+```{r}
+ggplot(data = countries) +
+  geom_sf(color = "black", fill = NA) +
+  theme_void()
+```
+
+You can also hide or change [graticules](https://en.wikipedia.org/wiki/Graticule_(cartography)) by using `theme()`. Try setting the `panel.grid` argument to `element_blank()` to hide the grid:
+
+```{r}
+ggplot(data = countries) +
+  geom_sf(color = "black", fill = NA) +
+  theme(
+    panel.grid = element_blank()
+    )
+```
+
+Now, try "zooming" into a selected area of your map using the `xlim` and `ylim` arguments for `coord_sf()`:
+
+```{r}
+# Initially, find the bounding limits of the geometry column
+#countries["geometry"]
+ggplot(data = countries) +
+  geom_sf(color = "black", fill = NA) +
+  coord_sf(
+    xlim = c(-2941189,5909467) ,
+    ylim = c(-3994236,4079934)
+  )
+#Shows the African continent
+```
+
+If you have difficulty with this one, look back at [our week 2 slides](https://bldgspatialdata.github.io/website/slides/data-visualization.html#/8/6) for an example showing how to use `sf::st_bbox()` to get xmin, xmax, ymin, and ymax values for the xlim and ylim parameter.
+
+----
+
+Using an inset map or "locator map" with a larger area and a zoomed in map showing a featured area is a common cartographic approach. You can use `patchwork::inset_element()` from the `{patchwork}` package to set this up:
+
+```{r}
+area_map <- ggplot(data = countries) +
+  geom_sf(color = "black", fill = NA) +
+  coord_sf(
+    xlim = c(-2941189,5909467),
+    ylim = c(-3994236,4079934)
+  )
+
+inset_map <- ggplot(data = countries) +
+  geom_sf(color = "black", fill = NA)
+
+area_map +
+  patchwork::inset_element(
+    p = inset_map,
+    left = 0.6,
+    bottom = 0.6,
+    top = 1,
+    right = 1
+  )
+```
+
+Remember, this format of calling functions (`<package name>::<function name>`) is just a shortcut for using functions from packages that *are* installed but not loaded into your environment. If you have any difficulty with this part of the exercise, make sure you have `{patchwork}` installed.
+
+---
+
+There are some cases when you need to modify the geometry of your data as part of the process of making a map. The `st_simplify()` function is one way to do that. Try setting dTolerance to a low value, e.g. `dTolerance = 10`, and run the code block. Then try to run it again with `dTolerance = 100000`.
+```{r}
+usa <- filter(countries, NAME == "United States of America")
+
+simple_usa <- st_simplify(x = usa, dTolerance = 10)
+
+ggplot() +
+  geom_sf(
+    data = usa,
+    color = "orange"
+    ) +
+  geom_sf(
+    data = simple_usa,
+    color = "purple"
+  ) +
+  theme_void()
+```
+
+```{r}
+usa <- filter(countries, NAME == "United States of America")
+
+simple_usa <- st_simplify(x = usa, dTolerance = 100000)
+
+ggplot() +
+  geom_sf(
+    data = usa,
+    color = "orange"
+    ) +
+  geom_sf(
+    data = simple_usa,
+    color = "purple"
+  ) +
+  theme_void()
+```
+
+What happens when you increase the value of dTolerance? On changing the dTolerance value from 10 to 100000, the boundary colors become more prominant allowing a better visualization.
+
+Now, let's try to same thing but smoothing features with `smoothr::smooth()` instead of simplifying with `sf::st_simplify()`. Start by setting smoothness to a small number, `smoothness = 0.5`, and then run again with higher and higher numbers:
+
+```{r}
+smooth_usa <- smoothr::smooth(x = usa, method = "ksmooth", smoothness = 0.5)
+
+ggplot() +
+  geom_sf(
+    data = usa,
+    color = "orange"
+    ) +
+  geom_sf(
+    data = smooth_usa,
+    color = "purple"
+  ) +
+  theme_void()
+```
+
+```{r}
+smooth_usa <- smoothr::smooth(x = usa, method = "ksmooth", smoothness = 5)
+
+ggplot() +
+  geom_sf(
+    data = usa,
+    color = "orange"
+    ) +
+  geom_sf(
+    data = smooth_usa,
+    color = "purple"
+  ) +
+  theme_void()
+```
+```{r}
+smooth_usa <- smoothr::smooth(x = usa, method = "ksmooth", smoothness = 50)
+
+ggplot() +
+  geom_sf(
+    data = usa,
+    color = "orange"
+    ) +
+  geom_sf(
+    data = smooth_usa,
+    color = "purple"
+  ) +
+  theme_void()
+```
+
+What happens when you increase the value of smoothness? The smoothness parameter reduces the number of edges of the polygon making it less precise but appealing. As we increase the smoothness of the smooth_usa variable which uses purple color, the orange outline which represents the actual boundary and the smoothed boundary(purple) separates out significantly enabling us to visualize to different maps.
+
+Check the documentation for `st_simplify()` or `smoothr::smooth()` for more information on how these functions work to modify the geometry.
+
+## Bonus exercise
+
+### Creating maps with `{tmap}`
+
+Pick one of the maps you created in the prior questions of this exercise and create a similar version using the `{tmap}` package.
+
+You can install `{tmap}` the same as any other package:
+
+```{r}
+# pak::pkg_install("tmap")
+```
+
+Then load the library:
+
+```{r}
+library(tmap)
+```
+
+And make a map using data from `{rnaturalearth}` or another source of your choice:
+
+```{r}
+qtm(countries, fill = "POP_EST", borders = "black")
+```
+
+What is the same about making a map with `{tmap}` compared to `{ggplot2}`? It can be used to plot an sf object using the quick plotting method qtm() or main plotting method tm_shape similar to ggplot() + geom_sf() from ggplot2 package in just one line.
+
+What is different about making a map with `{tmap}` compared to `{ggplot2}`? All the parameters including the aesthetics are specifically built for tmap package unlike the ggplot2 package. using qtm() or tm_shape() we can plot any desired map without aggregrating with any other function.
+
+Do you have any preference between the two? I would prefer tmap package because it allows direct plotting of sf objects and have all the parameters within the qtm() or tm_shape(), however, ggplot2 package allows flexibility and over writings by combining multiple functions and even other packages for interactions.

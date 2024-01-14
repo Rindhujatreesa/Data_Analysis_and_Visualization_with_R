@@ -1,0 +1,95 @@
+---
+title: "Exercise_06"
+date: "13th October 2023"
+status: "Completed"
+---
+
+```{r}
+library(tidyverse)
+library(sf)
+library(spData)
+```
+
+### BMC Regional GIS Data on ACS 2013 - 2017 Quick Facts for Census Tracts
+
+Data Source: [BMC Regional GIS](%22https://gisdata.baltometro.org/datasets/BMC::acs-2013-2017-quick-facts-for-census-tracts/about%22)
+
+American Community Survey(ACS) Quick facts 2013 - 2017 for Census Tracts
+
+This data set was aggregated by Baltimore Metropolitan Council for use in demographic profiles and applications.
+
+It involves features across population statics, employment, rent, mortgage, transportation, education, and location.
+
+### Reading the GeoJSON file into RStudio
+
+```{r}
+census_facts <- read_sf("https://gis.baltometro.org/arcgis/rest/services/Census/ACS2013_2017_QuickFacts/MapServer/1/query?outFields=*&where=1%3D1&f=geojson")
+census_facts
+```
+
+### Why is this data untidy?
+
+-   This data set could be called "untidy" for the columns that are repeated. For eg.: There is one column named "PERCENT_INCOME_BELOW_POV_LEVEL" and another "PERCENT_INCOME_ABOVE_POV_LEVEL". Also,
+
+PERCENT_INCOME_ABOVE_POV_LEVEL = 100 - PERCENT_INCOME_BELOW_POV_LEVEL
+
+-   Also, there are separate columns for number of people belonging to a race and other for percentage of people in those races.
+
+```{r}
+attributes(census_facts)
+#View(census_facts)
+```
+
+### Plotting using ggplot
+
+```{r}
+library(ggplot2)
+```
+
+Let's plot a map that shows the demographic difference in distribution of people of different ethnicity
+
+We will observe that we cannot demonstrate a visual difference using this visualization as all the regions have almost the same percent of ethnic people
+
+```{r}
+ggplot() +
+  #geom_sf(aes(fill = "Percent_White"), census_facts) +
+  geom_sf(aes(fill = "Percent_Black"), census_facts) #+
+  #geom_sf(aes(fill = "Percent_Asian"), census_facts) 
+  #geom_sf(aes(fill = "black"Percent_Hispanic), census_facts)
+```
+
+Using the pivot_longer() function, the percentage of ethnicity are collapsed into a single column.
+
+The Advantages of lengthening this sf object -
+
+-   We can procure a different row for ethnicity on further cleaning.
+
+-   Using a simple group_by() function,we can use the new data frame to understand the variation in ethnicity.
+
+```{r}
+census_facts |>
+  pivot_longer(
+    cols = c("Percent_White", "Percent_Black", "Percent_Asian", "Percent_Hispanic"),
+    names_to = "Ethnicity",
+    values_to = "Percent_of_ethnicity"
+  )
+```
+
+```{r}
+census_facts |>
+    pivot_longer(
+    cols = c("Percent_White", "Percent_Black",  "Percent_Hispanic", "Percent_Asian"),
+    names_to = "Ethnicity",
+    values_to = "Percent_of_ethnicity"
+  ) |>
+  group_by(OBJECTID, Ethnicity) |>
+  summarize(
+    max_pop = max(Percent_of_ethnicity)
+  )|>
+  ggplot()+
+  geom_sf(aes(fill =max_pop, color = Ethnicity))
+```
+
+In the above code, the color aesthetic is overridden by the last Ethnicity. However, the max_pop, i.e., the population percent of the ethnicity with the largest number of people in each region, is highlighted on a gradient scale. This map can be useful to interpret only if we know which ethnicity is the majority in each region.
+
+#### The census_facts data frame is a pretty tidy data set even though it has a lot of information, i.e., 53 features. The tidiness of the data makes the analysis and interpretation easier.

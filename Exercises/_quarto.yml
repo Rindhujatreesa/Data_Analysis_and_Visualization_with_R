@@ -1,0 +1,35 @@
+project:
+  type: website
+
+website:
+  title: "2023_exercises_template"
+  navbar:
+    left:
+      - href: index.qmd
+        text: Home
+      - about.qmd
+
+format:
+  html:
+    theme: zephyr
+    css: styles.css
+    mainfont: "Atkinson Hyperlegible"
+    monofont: "Fira Code"
+    code-copy: true
+    code-overflow: wrap
+    toc: true
+    highlight-style: a11y
+    df-print: tibble
+    number-sections: true
+    number-depth: 3
+
+status: WIP
+
+execute:
+  error: true
+  echo: true
+
+freeze: auto
+
+editor: visual
+
