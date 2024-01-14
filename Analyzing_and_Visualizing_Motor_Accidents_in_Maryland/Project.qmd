@@ -1,0 +1,427 @@
+---
+title: "Project"
+author: "Rindhuja Johnson"
+---
+
+Affiliation: University of Maryland Baltimore County
+
+Program: MPS in Data Science
+
+Course: GES 668 - Building Spatial Data sets (FALL 2023)
+
+Instructor: Eli Pousson
+
+# Analyzing and Visualizing the Motor Accidents in Maryland Counties
+
+## Importing the necessary libraries
+
+```{r}
+library(dplyr)
+library(sf)
+library(spData)
+library(ggplot2)
+library(plotly)
+library(lubridate)
+```
+
+# Data Sets
+
+1)  [Maryland Crash Data](https://mdsp.maryland.gov/Pages/Dashboards/CrashDataDownload.aspx)
+
+```{r}
+crash_data <- read.csv("data/CrashMap_REPORT_data.csv", sep = '\t', fileEncoding = "UTF-16LE")
+glimpse(crash_data)
+```
+
+## Data Cleaning and Data Pre-Processing
+
+### Checking for NULL values in the dataset
+
+```{r}
+crash_data <- na.omit(crash_data)
+glimpse(crash_data)
+```
+- There are no NULL values in the data set
+
+### Finding the data types of the columns in `crash_data` data frame
+
+```{r}
+data_types <- crash_data |>
+  summarise_all(class)
+data_types
+```
+
+### Changing the `Crashdate` column into `Data` type
+
+```{r}
+# Convert 'Crashdate' to Date format
+crash_data$Crashdate <- as.Date(crash_data$Crashdate, format = "%d/%m/%Y")
+crash_sf <- st_as_sf(crash_data, coords = c("Longitude", "Latitude"), crs = 4326)
+data_types <- crash_data |>
+  summarise_all(class)
+data_types
+```
+
+### Summarize the dataset
+
+```{r}
+crash_sf
+```
+### Summarize by Crash Category
+
+```{r}
+crash_sf |>
+  group_by(CountyOfCrash) |>
+  summarize(Types_of_Crashes = n_distinct(Reporttype))
+```
+- It shows that all the counties have reported Fatal, Injury, and Property Damage Crashes in 2023.
+
+## Analysis
+
+### Number of Counties
+
+```{r}
+counties <- crash_sf |>
+  distinct(CountyOfCrash) |>
+  summarize(Num_of_counties = n_distinct(CountyOfCrash))
+counties
+```
+
+### The Different categories of crashes and their counts
+
+```{r}
+crash_count <- crash_sf |>
+  group_by(Reporttype) |>
+  summarize(Count = n())
+crash_count
+```
+
+```{r}
+ggplot(crash_count, aes(Reporttype, y = Count)) +
+  geom_bar(stat = "identity", fill = "lavender", color = "black") +
+  labs(title = "Number of Crashes by Type",
+       x = "Crash Type",
+       y = "Number of Crashes") +
+  theme_minimal() 
+```
+
+### Which counties have the maximum and minimum crashes?
+
+```{r}
+# Summarize the data by County
+county_crashes <- crash_sf |>
+  group_by(CountyOfCrash) |>
+  summarize(Total_crashes = n()) |>
+  arrange(desc(Total_crashes))
+county_crashes
+```
+
+```{r}
+ggplot(county_crashes, aes(x = CountyOfCrash, y = Total_crashes)) +
+  geom_bar(stat = "identity", fill = "skyblue", color = "black") +
+  labs(title = "Number of Crashes by County",
+       x = "County",
+       y = "Number of Crashes") +
+  theme_minimal() +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1))  # Rotate x-axis labels for better readability
+
+```
+
+```{r}
+# County with the maximum crashes
+max_county <- county_crashes |>
+  filter(Total_crashes == max(Total_crashes))
+
+# County with the minimum crashes
+min_county <- county_crashes |>
+  filter(Total_crashes == min(Total_crashes))
+#print("The County with maximum crashes is: ")
+max_county
+#print("The County with minimum crashes is: ")
+min_county
+```
+
+### Which county has the most fatal accidents
+
+```{r}
+fatal_county <- crash_sf |>
+  filter(Reporttype == "Fatal Crash") |>
+  group_by(CountyOfCrash) |>
+  summarize(Total_fatal_accidents = n()) |>
+  arrange(desc(Total_fatal_accidents))
+fatal_county
+```
+
+```{r}
+ggplot(fatal_county, aes(x = CountyOfCrash, y = Total_fatal_accidents)) +
+  geom_bar(stat = "identity", fill = "darkred", color = "black") +
+  labs(title = "Number of Fatal Crashes by County",
+       x = "County",
+       y = "Number of Fatal Crashes") +
+  theme_minimal() +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1))
+```
+
+### Which county has the most injury accidents
+
+```{r}
+injury_county <- crash_sf |>
+  filter(Reporttype == "Injury Crash") |>
+  group_by(CountyOfCrash) |>
+  summarize(Total_injury_accidents = n()) |>
+  arrange(desc(Total_injury_accidents))
+injury_county
+```
+
+```{r}
+ggplot(injury_county, aes(x = CountyOfCrash, y = Total_injury_accidents)) +
+  geom_bar(stat = "identity", fill = "blue", color = "black") +
+  labs(title = "Number of Injury Crashes by County",
+       x = "County",
+       y = "Number of Injury Crashes") +
+  theme_minimal() +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1))
+```
+
+### Which county has the most Property damage accidents
+
+```{r}
+pd_county <- crash_sf |>
+  filter(Reporttype == "Property Damage Crash") |>
+  group_by(CountyOfCrash) |>
+  summarize(Total_pd_accidents = n()) |>
+  arrange(desc(Total_pd_accidents))
+pd_county
+```
+
+```{r}
+ggplot(pd_county, aes(x = CountyOfCrash, y = Total_pd_accidents)) +
+  geom_bar(stat = "identity", fill = "lightgreen", color = "black") +
+  labs(title = "Number of Property Damage Crashes by County",
+       x = "County",
+       y = "Number of Property Damage Crashes") +
+  theme_minimal() +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1))
+```
+
+### Analyze the crash trend over the months
+
+```{r}
+# Extract month and year from 'Crashdate'
+crash_sf <- crash_sf |>
+  mutate(Year = year(Crashdate),
+         Month = month(Crashdate, label = TRUE),
+         Day = wday(Crashdate, label = TRUE, abbr = FALSE))
+
+# Group by 'CountyOfCrash', 'Year', 'Month', and 'Reporttype'
+monthly_crash_count <- crash_sf |>
+  group_by(CountyOfCrash, Year, Month, Reporttype) |>
+  summarize(Count = n())
+monthly_crash_count
+```
+
+```{r}
+#crash_sf
+```
+
+
+```{r}
+# Plot the line graph
+ggplot(monthly_crash_count, aes(x = Month, y = Count, color = Reporttype)) +
+  geom_point() +
+  facet_wrap(~CountyOfCrash, scales = "free_y") +
+  labs(title = "Accident Trend in Each County Over the Months",
+       x = "Month",
+       y = "Number of Accidents",
+       color = "Crash Type") +
+  theme_minimal() +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1))
+```
+
+
+```{r}
+# Group by 'CountyOfCrash', 'Year', 'Month', and 'Reporttype' for Counties with high crash count
+high_crash_county <- crash_sf |>
+  filter(CountyOfCrash == "Prince George's" | CountyOfCrash == "Baltimore City"| CountyOfCrash == "Baltimore"| CountyOfCrash == "Montgomery") |>
+  group_by(CountyOfCrash, Year, Month, Reporttype) |>
+  summarize(Count = n())
+#high_crash_county
+```
+
+```{r}
+# Plot the line graph
+ggplot(high_crash_county, aes(x = Month, y = Count, color = Reporttype)) +
+  geom_point() +
+  facet_wrap(~CountyOfCrash, scales = "free_y") +
+  labs(title = "Accident Trend in Counties (with highest reports) Over the Months",
+       x = "Month",
+       y = "Number of Accidents",
+       color = "Crash Type") +
+  theme_minimal() +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1))
+```
+
+
+#### Observations from the Trend Analysis
+
+-   Since, the `Maryland Crash dataset` is dated from 1st January 2023 to 12th December 2023, the number of accidents in December is very less as compared to other months and cannot be used for comparison.
+-   We can see that there is a decline in the number of crashes in the Summer and Fall months of the year (from June through September) in most counties except Queen Anne's, Somerset, and Worcester counties.
+-   Also, Garrett county shows the most irregular trend in number of crashes throughout the year.
+-   Worcester county shows a steep increase in `Property Damage Crashes` and `Injury Crashes` in the month of July
+
+### Analysis of fatal crash over the days
+
+```{r}
+daily_fatal_crash <- crash_sf |>
+  filter(Reporttype == "Fatal Crash") |>
+  group_by(Day, Month, Reporttype) |>
+  summarize(Count = n())
+
+# Plot the variation of fatal accidents by days
+ggplot(daily_fatal_crash, aes(x = Day))+
+  geom_bar(fill = "darkblue") +
+  labs(title = "Variation of Fatal Accidents by Days",
+       x = "Day of the Month",
+       y = "Number of Fatal Accidents") +
+  theme_minimal()
+
+```
+
+### Analyze the fatal crash trend in Prince George's County over the days
+
+```{r}
+daily_crash_count <- crash_sf |>
+  filter(Reporttype == "Fatal Crash", CountyOfCrash == "Prince George's") |>
+  group_by(CountyOfCrash, Day, Month, Reporttype) |>
+  summarize(Count = n())
+
+# Plot the variation of fatal accidents by days
+ggplot(daily_crash_count, aes(x = Day))+
+  geom_bar(fill = "maroon") +
+  labs(title = "Variation of Fatal Accidents in Prince George's County by Days",
+       x = "Day of the Month",
+       y = "Number of Fatal Accidents") +
+  theme_minimal()
+```
+
+### Analyze the fatal crash trend in Baltimore's County over the days
+
+```{r}
+daily_crash_count <- crash_sf |>
+  filter(Reporttype == "Fatal Crash", CountyOfCrash == "Baltimore") |>
+  group_by(CountyOfCrash, Day, Month, Reporttype) |>
+  summarize(Count = n())
+
+# Plot the variation of fatal accidents by days
+ggplot(daily_crash_count, aes(x = Day))+
+  geom_bar(fill = "brown") +
+  labs(title = "Variation of Fatal Accidents in Baltimore County by Days",
+       x = "Day of the Month",
+       y = "Number of Fatal Accidents") +
+  theme_minimal()
+```
+
+2.  US State Polygons
+
+This is the pre-defined data set in the `spData` package which consists of the geometry for the US states. This can be used to plot the outline of the expected map.
+
+Extracting Maryland Geometry Data
+
+```{r}
+maryland <- filter(us_states, NAME == "Maryland")
+maryland<- st_transform(maryland, crs = 4326)
+maryland
+```
+
+Plotting the Maryland Map
+
+```{r}
+maryland |>
+  ggplot() +
+  geom_sf(aes(color = 'black'), color = "black", alpha = 0)
+```
+
+3.  Open Street Map
+
+The `osmdata` package is used to extract the data of the highways in Maryland. This can be used to plot the roads on to which the accident prone zones can be marked.
+
+The bounding box function, `bbox()` is applied and the extracted data is stored as an sf object in the variable `maryland_highways`
+
+##### License
+
+This `open_data.geojson` is made available under the [Open Database License](http://opendatacommons.org/licenses/odbl/1.0/). Any rights in individual contents of the database are licensed under the [Database Contents License](http://opendatacommons.org/licenses/dbcl/1.0/)
+
+-   Now, let us read the GeoJSON file and use it for the mapping and analysis
+
+```{r}
+md_highways <- st_read("data/maryland_highways_data.geojson")
+```
+
+The highways will look like -
+
+```{r}
+ggplot()+
+  geom_sf(data = md_highways)
+```
+
+## Visualization
+
+### Visualizing the crashes in Maryland
+
+```{r}
+plot_maryland_highways <- function(sf1, sf2, sf3, mapping1 = aes(), mapping2 = aes(), ...) {
+  sf3 |>
+    ggplot() +
+    geom_sf(data = sf3, mapping = mapping1, ...) +  
+    geom_sf(data = sf2, mapping = mapping2, color = "gray") +
+    geom_sf(data = sf1, mapping = aes(color = 'Maryland Borders'), color = "black", alpha = 0) +
+    theme_void()
+
+}
+
+map <- plot_maryland_highways(sf1 = maryland,
+                       sf2 = md_highways,
+                       sf3 = crash_sf,
+                       mapping1 = aes(color = Reporttype),
+                       mapping2 = aes(color = Highway))
+
+plotly::ggplotly(map)
+```
+
+### Visualizing the Fatal crashes in Maryland
+
+```{r}
+fatal_crash <- crash_sf |>
+  filter(Reporttype == "Fatal Crash")
+#fatal_crash
+map_fatal <- plot_maryland_highways(sf1 = maryland,
+                       sf2 = md_highways,
+                       sf3 = fatal_crash,
+                       mapping1 = aes(color = Reporttype),
+                       mapping2 = aes(color = "Highway"))
+map_fatal
+```
+
+```{r}
+injury_crash <- crash_sf |>
+  filter(Reporttype == "Injury Crash")
+#injury_crash
+map_injury <- plot_maryland_highways(sf1 = maryland,
+                       sf2 = md_highways,
+                       sf3 = injury_crash,
+                       mapping1 = aes(color = Reporttype),
+                       mapping2 = aes(color = "Highway"))
+map_injury
+```
+
+```{r}
+pd_crash <- crash_sf |>
+  filter(Reporttype == "Property Damage Crash")
+#pd_crash
+map_pd <- plot_maryland_highways(sf1 = maryland,
+                       sf2 = md_highways,
+                       sf3 = pd_crash,
+                       mapping1 = aes(color = Reporttype),
+                       mapping2 = aes(color = "Highway"))
+map_pd
+```

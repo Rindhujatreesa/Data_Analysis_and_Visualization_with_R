@@ -1,6 +1,9 @@
-# Project Report
-
-Author : Rindhuja Johnson
+---
+title: "Project Report"
+author: "Rindhuja Johnson"
+format: html
+editor: visual
+---
 
 Affiliation: University of Maryland Baltimore County
 
@@ -22,7 +25,7 @@ This is the final project submitted as a part of `GES668: Building Spatial Data 
 
 [Tools](#tools)
 
-[Data Sources](#data-sources) - [Maryland Crash Data]((#1)-maryland-crash-data), [US State Polygons]((#2)-us-state-polygons), [Open Street Map Data]((#3)-open-street-map)
+[Data Sources](#data-sources) - [Maryland Crash Data](#maryland-crash-data), [US State Polygons](#us-state-polygons), [Open Street Map Data](#open-street-map)
 
 [Methodology](#methodology)
 
@@ -34,11 +37,11 @@ This is the final project submitted as a part of `GES668: Building Spatial Data 
 
 [References](#references)
 
-## Introduction {#introduction}
+## Introduction
 
 Maryland is a state in the Mid-Atlantic region of the United States well-connected by Interstate and State highways. According to the official Maryland government website, [Zero Deaths](https://zerodeathsmd.gov/resources/crashdata/), there were 476 crash reports resulting in a fatal injury of 511 people in the year 2023. The Maryland State government provides a website for the live updates on transportation related news such as traffic incidents, traffic alerts, and weather alerts to keep its citizens safe [Live Updates](https://chart.maryland.gov/Incidents/GetIncidents). Even with such initiatives from the State government, an average of 295 crashes are reported daily in Maryland [MD Accident Statistics](https://ricelawmd.com/maryland-crash-accident-statistics/#:~:text=Accidents%20in%20Maryland%20are%20a,and%20the%20numbers%20are%20astonishing.). The Zero Deaths is an initiative of [the Maryland Highway safety Office](https://zerodeathsmd.gov/highway-safety-office/) which is a division of the Maryland Department of Transportation Motor Vehicle Administration (MDOT MVA) with a data-driven approach to reach the goal of zero roadway fatalities and serious injuries.
 
-## Objective {#objective}
+## Objective
 
 This project focuses on analyzing the motor crashes in the state of Maryland in the US. I try to develop a map of the accident prone areas in the state that would be helpful for drivers to be cautious and on further application could be integrated with Open Street Map to highlight dangerous spots on the highway.
 
@@ -59,43 +62,44 @@ The second part of this project is the visualization of the analysis. Numerous `
 
 The final part of this project is a mapping of the crash spots on the Maryland map with the highways marked on it. This map intends to be useful as a precautionary guide for drivers in Maryland.
 
-## Tools {#tools}
+## Tools
 
 -   R programming language in RStudio
 -   Quarto Documentation
 -   Presentation slides using revealJS
 -   GitHub Repository and Git for committing, pulling, and pushing to origin
 
-## Data Sources {#data-sources}
+## Data Sources
 
 I used three data sources for the implementation of this project.
 
-### 1) Maryland Crash Data
+### Maryland Crash Data
 
--   Data Source: [Maryland Crash Data](https://mdsp.maryland.gov/Pages/Dashboards/CrashDataDownload.aspx)
+- Data Source: [Maryland Crash Data](https://mdsp.maryland.gov/Pages/Dashboards/CrashDataDownload.aspx)
+
 -   The dataset extracted is filtered for crashes in Maryland from 01st January 2023 to 12th December 2023.
 -   The dataset consists of the columns - `Reporttype`, `Date`, `CountyofCrash`, `Latitude`, and `Longitude` - that are required for the analysis and mapping.
 -   The first three are used for the EDA. It gave the understanding of how the crash type (Reporttype) and Counties are related. Also, a brief time analysis over the months were conducted for each county based on the fatality of the crashes.
 
-```{r}
+```         
 library(sf)
 crash_data <- read.csv("data/CrashMap_REPORT_data.csv", sep = '\t', fileEncoding = "UTF-16LE")
 #attributes(crash_data)
 crash_sf <- st_as_sf(crash_data, coords = c("Longitude", "Latitude"), crs = 4326)
 ```
 
-### 2) US State Polygons
+### US State Polygons
 
 This is the pre-defined data set in the `spData` package which consists of the geometry for the US states. This is used to plot the outline of the state of Maryland.
 
-```{r}
+```         
 library(spData)
 maryland <- filter(us_states, NAME == "Maryland")
 maryland<- st_transform(maryland, crs = 4326)
 maryland
 ```
 
-### 3) Open Street Map
+### Open Street Map
 
 The `osmdata` package is used to extract the data of the highways in Maryland. This can be used to plot the roads on to which the accident prone zones can be marked.
 
@@ -105,7 +109,7 @@ The bounding box function, `bbox()` is applied and the extracted data is stored 
 
 *This `open_data.geojson` is made available under the [Open Database License](http://opendatacommons.org/licenses/odbl/1.0/). Any rights in individual contents of the database are licensed under the [Database Contents License](http://opendatacommons.org/licenses/dbcl/1.0/)*
 
-```{r}
+```         
 library(osmdata)
 q <- getbb ('Maryland, USA', format_out = 'polygon')
 maryland_highways <- opq(bbox = q, timeout = 100) |>
@@ -117,46 +121,43 @@ st_write(maryland_highways, file_path, driver = "GeoJSON")
 md_highways <- st_read("data/maryland_highways_data.geojson")
 ```
 
-## Methodology {#methodology}
+## Methodology
 
 -   Data Collection and Storage - URLs, spData, osmdata: The method of data collection and data extraction are given in the [Data Section](#data)
-
 -   Data Extraction - read_sf, read.csv()
-
 -   Data Pre-processing - dplyr, base
 
-    -   The Pre-processing involved data cleaning by checking for NULL values and consistency of values in the records
-    -   Further, the data type of the `Date` column was converted to `Date` format which was initially `character` type
-
+    - The Pre-processing involved data cleaning by checking for NULL values and consistency of values in the records
+    - Further, the data type of the `Date` column was converted to `Date` format which was initially `character` type
+    
 -   Exploratory Data Analysis - dplyr, sf
 
     -   A number of analysis was conducted on the data set to derive useful insights
     -   The analysis focused on grouping the data set based on County, Crash severity `(Reporttype)`, and Date
-
 -   Visualization - ggplot2, plotly
 
     -   All the analysis results were plotted using bar plots and scatter plots for better understanding and pattern recognition
-
 -   Mapping - ggplot2, plotly
 
-    -   An interactive map was developed to visualize the crash spots on the higways in the state of Maryland
-    -   A map with just the Fatal Crash spots was also plotted to get a closer look at those spots.
+    - An interactive map was developed to visualize the crash spots on the higways in the state of Maryland
+    - A map with just the Fatal Crash spots was also plotted to get a closer look at those spots.
 
-## Analysis and Visualization {#analysis-and-visualization}
+## Analysis and Visualization
 
 <img src="images/crash_count.png" alt="Crash Count By Accident Type" width="500"/> <img src="images/crash_count_county.png" alt="Crash Count By County" width="500"/> <img src="images/crash_fatal.png" alt="Crash Count By Fatal Crashes" width="500"/> <img src="images/crash_injury.png" alt="Crash Count By Injury Crashes" width="500"/> <img src="images/crash_pd.png" alt="Crash Count By Property Damage Crashes" width="500"/> <img src="images/crash_trend.png" alt="Crash Trend Over the Months of 2023" width="500"/> <img src="images/high_crash_county.png" alt="Crash Trend in the Counties with highest Crash Report" width="500"/> <img src="images/fatal_days.png" alt="Fatal Crash Trend Over a Week" width="500"/> <img src="images/fatal_prince.png" alt="CFatal Crash Trend Over a Week in Prince George&apos;s County" width="500"/> <img src="images/fatal_baltimore.png" alt="Fatal Crash Trend Over a Week in Baltimore County" width="500"/> <img src="images/map.png" alt="Mapping of the Crash Points" width="500"/> <img src="images/map_fatal.png" alt="Mapping of the Fatal Crash Points" width="500"/>
 
-## Insights from the Analysis {#insights-from-the-analysis}
+## Insights from the Analysis
 
 ### Prince George's County
 
 Highest Number of -
 
--   Total Crashes (Baltimore County close second)
--   Fatal Accidents
--   Property Damage Accidents
+- Total Crashes (Baltimore County close second)
+- Fatal Accidents
+- Property Damage Accidents
 
 Higher fatal crashes occur on Sundays and Mondays
+
 
 ### Baltimore City County
 
@@ -164,13 +165,15 @@ Highest Number of Injury Crashes
 
 Higher fatal crashes occur on Sundays and relatively; Lesser on Tuesdays and Thursdays
 
+
 ### General Trend in Crashes
 
--   There is a dip in number of accidents during the Summer and Fall months (from June to Sept) in most counties
+- There is a dip in number of accidents during the Summer and Fall months (from June to Sept) in most counties
 
 #### Exceptions
 
 Queen Anne's, Somerset, and Worcester
+
 
 ### Mapping
 
@@ -184,13 +187,14 @@ Queen Anne's, Somerset, and Worcester
 
 -   We can see that there is a decline in the number of crashes in the Summer and Fall months of the year (from June through September) in most counties except Queen Anne's, Somerset, and Worcester counties.
 
--   Kent County has the least number of overall as well as the least crashes in all accident types
+- Kent County has the least number of overall as well as the least crashes in all accident types
 
--   Less fatal crashes occur on Wednesdays as compared to other days of the week
+- Less fatal crashes occur on Wednesdays as compared to other days of the week 
 
 -   Also, Garrett county shows the most irregular trend in number of crashes throughout the year.
 
-## Limitations and Future Work {#limitations-and-future-work}
+
+## Limitations and Future Work
 
 -   The mapping did not turn out to give a useful indicator of accident zones due to the amassing of points.
 
@@ -200,7 +204,7 @@ Queen Anne's, Somerset, and Worcester
 
 -   The mapping can be further extended to do more spatial statistics to find accident prone zones that can be used to give precaution signals and notification in driver's device
 
-## References {#references}
+## References
 
 [Zero Deaths](https://zerodeathsmd.gov/resources/crashdata/)
 

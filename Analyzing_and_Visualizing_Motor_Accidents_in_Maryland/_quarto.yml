@@ -1,0 +1,27 @@
+project:
+  type: website
+
+website:
+  title: "Building Spatial Data Project"
+  navbar:
+    left:
+      - href: readme.qmd
+        text: Home
+      - Project_Proposal.qmd
+      - Project.qmd
+      - final-project-presentation.qmd
+
+
+
+format:
+  html:
+    theme: cyborg
+    css: styles.css
+    toc: true
+
+editor: visual
+
+execute:
+  freeze: auto
+
+

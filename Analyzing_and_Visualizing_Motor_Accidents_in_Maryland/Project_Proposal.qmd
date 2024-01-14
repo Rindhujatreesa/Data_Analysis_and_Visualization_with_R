@@ -1,0 +1,219 @@
+---
+title: "Project Proposal"
+author: "Rindhuja Johnson"
+format: html
+editor: visual
+---
+
+Affiliation: University of Maryland Baltimore County
+
+Program: MPS in Data Science
+
+Course: GES 668 - Building Spatial Data sets (Fall 2023)
+
+Instructor: Eli Pousson
+
+# Visualizing the Motor Accident Hot-spots in Maryland
+
+### 1. Introduction
+
+Maryland is a state in the Mid-Atlantic region of the United States well-connected by Interstate and State highways. According to the official Maryland government website, [Zero Deaths](https://zerodeathsmd.gov/resources/crashdata/), there were 476 crash reports resulting in a fatal injury of 511 people in the year 2023. The Maryland State government provides a website for the live updates on transportation related news such as traffic incidents, traffic alerts, and weather alerts to keep its citizens safe. [Live Updates](https://chart.maryland.gov/Incidents/GetIncidents)
+
+Even with such initiatives from the State government, an average of 295 crashes are reported daily in Maryland [MD Accident Statistics](https://ricelawmd.com/maryland-crash-accident-statistics/#:~:text=Accidents%20in%20Maryland%20are%20a,and%20the%20numbers%20are%20astonishing.). The Zero Deaths is an initiative of [the Maryland Highway safety Office](https://zerodeathsmd.gov/highway-safety-office/) which is a division of the Maryland Department of Transportation Motor Vehicle Administration (MDOT MVA) with a data-driven approach to reach the goal of zero roadway fatalities and serious injuries.
+
+In this project, a map that highlights the accident hot-spots on the major roadways in the Maryland State are visualized. A model of the expected outcome is given below -
+
+![Model Map](https://www.marylandmatters.org/wp-content/uploads/2024/04/Untitled-design-50.png)
+
+Below is a map of the Interstates passing through the State Source: [MDRoads](http://www.mdroads.com/routes/is.html).
+
+![Map showing the Interstate highways in Maryland](http://www.mdroads.com/maps/md-i.gif)
+
+### 2. Objectives
+
+***Data Collection and Pre-processing***
+
+Clean the columns of the data by finding the distinct cell values. E.g., in accident_types, values - 'pd', 'PD', and 'Property Damage Crash' - are the same types entered differently.
+
+Extract the Maryland map geometry, plot as the base layer and plot the accident-prone areas on top of it.
+
+Using integration with `osmdata`, locate the accident-prone locations on highways - the junctions, turns, exits, or others.
+
+***Exploratory Data Analysis***
+
+A few EDA outcomes expected from this data set are:
+
+-   A time-series analysis: The trends in accidents during hours of a day, days of a week, months of a year, and throughout the years.
+-   A spatial analysis: Segregating the accident locations based on the types of roads, the infrastructure like traffic light, exits, stop signals.
+
+***Data Visualization***
+
+The final outcome will be a three-layered interactive map that shows the accident spots along the highways with the state boundary.
+
+***IF POSSIBLE***
+
+Create an alert/warning map and contribute to the open street map indicating the dangerous points.
+
+### 3. Data
+
+This project utilizes data from three different sources:
+
+1.  MDTA accidents
+2.  U.S. state boundaries
+3.  OpenStreetMap data
+
+#### 3.1. [MDTA Accidents](https://opendata.maryland.gov/Public-Safety/MDTA-Accidents/rqid-652u)
+
+***About the Data Source***:
+
+*MDTA Accidents* data set is an open-source data from the [Maryland Open Data](https://opendata.maryland.gov/Public-Safety/MDTA-Accidents/rqid-652u) website. This data set consists of car crashes reported to MDTA police within the jurisdiction of the state of Maryland. The MDTA facilities include:
+
+-   Francis Scott Key Bridge (I-695)
+-   John F. Kennedy Memorial Highway (I-95)
+-   Thomas J. Hatem Memorial Bridge (US 40)
+-   Fort McHenry Tunnel (I-95)
+-   Baltimore Harbor Tunnel (I-895)
+-   The Bay Bridge (US 50/301)
+-   Governor Harry W. Nice Memorial Bridge (US 301)
+-   Intercounty Connector (ICC/MD200)
+
+The data set has car crash data from July 2012 and is updated regularly. The last update was on April 12, 2023.
+
+The Open Data website data set is extracted through the [API](https://opendata.maryland.gov/resource/rqid-652u.json) using the Socrata App Token. It consists of 6 variables.
+
+3.1.1. The extraction and the data set description is given below:
+
+```{r}
+library(RSocrata)
+library(sf)
+library(dplyr)
+
+data <- read.socrata(
+  "https://opendata.maryland.gov/resource/rqid-652u.json"
+)
+
+glimpse(data)
+class(data)
+```
+
+However, the data is in a data frame format.
+
+3.1.2. We convert it into an sf object for visualizations.
+
+```{r}
+library(dplyr)
+data <- na.omit(data)
+data_sf <- st_as_sf(data, coords = c("geocoded_column.longitude", "geocoded_column.latitude"), crs = "EPSG:4326")
+glimpse(data_sf)
+class(data_sf)
+```
+
+Note that there were 7 NAs in the data object.
+
+3.1.3. The sf object can be plotted as -
+
+```{r}
+library(ggplot2)
+data_sf |>
+  ggplot() +
+  geom_sf(mapping = aes(color = accident_type))
+```
+
+#### 3.2. US_STATES
+
+This is the pre-defined data set in the `spData` package which consists of the geometry for the US states. This can be used to plot the outline of the expected map.
+
+3.2.1. Extracting Maryland Geometry Data
+
+```{r}
+library(spData)
+maryland <- filter(us_states, NAME == "Maryland")
+maryland
+```
+
+3.2.2. Plotting the Maryland Map
+
+```{r}
+maryland |>
+  ggplot() +
+  geom_sf(aes(color = "red"), alpha = 0)
+```
+
+#### 3.3. Open Street Map
+
+The `osmdata` package is used to extract the data of the highways in Maryland. This can be used to plot the roads on to which the accident prone zones can be marked.
+
+3.3.1. The bounding box function, `bbox()` is applied and the extracted data is stored as an sf object in the variable `maryland_highways`
+
+```         
+library(osmdata)
+q <- getbb ('Maryland, USA', format_out = 'polygon')
+maryland_highways <- opq(bbox = q, timeout = 100) |>
+  add_osm_feature(key = 'highway', value = 'motorway') |>
+  osmdata_sf()
+maryland_highways <- maryland_highways$osm_lines
+```
+
+Let us download this data set into the local so that each time we render the Quarto document it does not use up space and the data set we will be within the GitHub restricted size.
+
+```         
+file_path <- "maryland_highways_data.geojson"
+st_write(maryland_highways, file_path, driver = "GeoJSON")
+```
+
+Now, let us read the GeoJSON file and use it for the mapping and analysis
+
+```{r}
+md_highways <- st_read("data/maryland_highways_data.geojson")
+```
+
+3.3.2. The highways will look like -
+
+```{r}
+ggplot() +
+  geom_sf(data = md_highways)
+```
+
+### 4. Expected Outcome
+
+Developing an alert map for the motor drivers.
+
+This will be a 3-layered map with the Maryland state borders, the highways, and the accident locations.
+
+A rough output is shown below.
+
+In the final output, a more clean and aesthetically appealing map is expected.
+
+```{r}
+plot_maryland_highways <- function(sf1, sf2, sf3, mapping1 = aes(), mapping2 = aes(), ...) {
+  # Set CRS for sf1 and sf2
+  sf1 <- st_set_crs(sf1, 4269)
+  sf2 <- st_set_crs(sf2, 4269)
+  sf3 <- st_set_crs(sf3, 4269)
+  sf3 %>%
+    ggplot() +
+    geom_sf(data = sf2, mapping = mapping2) +
+    geom_sf(data = sf1, mapping = aes(color = "red"), alpha = 0) +
+    geom_sf(mapping = mapping1, ...) +
+    theme_minimal()
+  # Customize the theme if needed
+}
+
+# Example usage
+map <- plot_maryland_highways(
+  sf1 = maryland,
+  sf2 = md_highways,
+  sf3 = data_sf,
+  mapping1 = aes(color = accident_type),
+  mapping2 = aes(color = name_1)
+)
+```
+
+```{r}
+library(plotly)
+plotly::ggplotly(map)
+```
+
+-   A time-series visualization of the accident trends in hourly, daily, monthly, and yearly scales.
+
+-   A Spatial visualization of the trends in accidents based on traffic infrastructures.

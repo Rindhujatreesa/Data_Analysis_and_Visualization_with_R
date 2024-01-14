@@ -1,0 +1,17 @@
+---
+title: "About this sample project"
+---
+
+This is a sample Quarto project website created for use by students in the course [Building Spatial Datasets](https://bldgspatialdata.github.io/website/).
+
+To learn more about Quarto websites visit <https://quarto.org/docs/websites>.
+
+You are *required* to use this project website for [Exercise 7](https://bldgspatialdata.github.io/website/exercises/exercise_07.html) on functions and Quarto (topics covered in [week 7](https://bldgspatialdata.github.io/website/weeks/week_07.html) of our class).
+
+To review a collection of example functions and learn more about creating a Quarto document, take a look at the `examples.qmd` file or, if you are looking at the preview of the rendered site, you can [take a look at the examples here](../example-functions.html).
+
+You are *encouraged* but not *required* to use this same project website for your:
+
+-   final project proposal,
+-   presentation,
+-   and project repository

@@ -1,0 +1,432 @@
+---
+title: "GES668: Analyzing and Visualizing the Motor Accidents in Maryland Counties"
+author: "Rindhuja Johnson"
+format: revealjs
+date-modified: 2023-12-13
+---
+
+## Overview
+
+-   Analysis of the road crashes in Maryland
+-   Analysis further extended based on the type of crash
+-   Brief Overview of the crashes in each County
+-   A simple visualization of the crash points on a Maryland map
+
+## Project goals
+
+-   Initial Goal: A rich visualization of the accident hot-spots on Maryland Highways to give drivers caution in accident-prone zones
+
+-   Developed Goals
+
+    -   Analysis on the crashes based on the types and in which county they occur.
+    -   A map showing the crashes in the State categorized by the accident types
+
+# Data sources
+
+# 1. [Maryland Crash Data](https://mdsp.maryland.gov/Pages/Dashboards/CrashDataDownload.aspx)
+
+## What is Maryland Crash Data? How did I extract it? 
+::: r-fit-text
+-   Collected and documented by the Maryland State Police (MDSP)
+-   Crash Data Download Tool
+    -   Maintained by Department of State police to make the data available for public up to 5 years.
+    -   Collected using the Automatic Crash Reporting System (ACRS)
+
+```{r}
+#| label: extraction of csv from repository
+#| echo: true
+library(dplyr)
+crash_data <- read.csv("data/CrashMap_REPORT_data.csv", sep = '\t', fileEncoding = "UTF-16LE")
+glimpse(crash_data)
+```
+:::
+## Data Cleaning  
+::: r-fit-text
+- Checking for NULL values: The number of rows are the same after omitting the NULL records, i.e., no NULL values
+```{r}
+#| echo: true
+crash_data <- na.omit(crash_data)
+glimpse(crash_data)
+```
+
+- Checking the data type of the features
+
+```{r}
+#| echo: true
+data_types <- crash_data |>
+  summarise_all(class)
+data_types
+```
+:::
+
+## Data Pre-processing
+::: r-fit-text
+
+Converted the Date column into `Date` format
+```{r}
+#| echo: true
+# Convert 'Crashdate' to Date format
+crash_data$Crashdate <- as.Date(crash_data$Crashdate, format = "%d/%m/%Y")
+data_types <- crash_data |>
+  summarise_all(class)
+data_types
+```
+
+- Finally converted the data frame into an sf object
+
+```{r}
+#| echo: true
+library(sf)
+crash_sf <- st_as_sf(crash_data, coords = c("Longitude", "Latitude"), crs = 4326)
+glimpse(crash_sf)
+```
+:::
+## 2. [US State Polygons](https://rdrr.io/cran/spData/man/us_states.html)
+
+-   An `sf` object containing the contiguous United States data from the US Census Bureau with a few variables from American Community Survey (ACS)
+-   Extracted using `us_states` code line
+
+```{r}
+#| label: extraction from spData
+#| echo: true
+library(spData)
+library(dplyr)
+library(sf)
+maryland <- filter(us_states, NAME == "Maryland")
+maryland<- st_transform(maryland, crs = 4326)
+```
+
+## 3. [Open Street Map Data](https://cran.r-project.org/web/packages/osmdata/vignettes/osmdata.html)
+
+-   The open-source data from the `Open Street Map` is extracted using `osmdata` package.
+
+```{r}
+#| label: extraction from osmdata
+#| echo: true
+library(osmdata)
+q <- getbb ('Maryland, USA', format_out = 'polygon')
+#maryland_highways <- opq(bbox = q, timeout = 100) |>
+#  add_osm_feature(key = 'highway', value = 'motorway') |>
+#  osmdata_sf()
+#maryland_highways <- maryland_highways$osm_lines
+#file_path <- "maryland_highways_data.geojson"
+#st_write(maryland_highways, file_path, driver = "GeoJSON")
+md_highways <- st_read("data/maryland_highways_data.geojson")
+```
+
+## Approach for working with the data
+
+-   Focused on EDA unlike proposed in the project proposal.
+-   Visualizations also included for better analysis
+-   Analysis gave better insights and room for further actions.
+-   The [Open Data Maryland](https://opendata.maryland.gov/resource/rqid-652u.json) with crash data was replaced by [Maryland Crash Data](https://mdsp.maryland.gov/Pages/Dashboards/CrashDataDownload.aspx) for the data set had more relevant columns like County which helped with analysis.
+
+## Methodology
+
+-   Data Collection and Storage - URLs, spData, osmdata
+-   Data Extraction - read_sf, read.csv()
+-   Data Pre-processing - dplyr, base
+-   Exploratory Data Analysis - dplyr, sf
+-   Visualization - ggplot2
+-   Mapping - ggplot2, plotly
+
+## Challenges in working with data
+
+-   Different CRS for the data sets
+-   Compelling but uncompromising aesthetics
+-   Huge data size of open street data objects and timeout errors
+
+> Error in check_for_error(paste0(doc)) : General overpass server error; returned: The data included in this document is from www.openstreetmap.org. The data is made available under ODbL. runtime error: Query timed out in "query" at line 4 after 121 seconds.
+
+# Outcomes of the Project
+
+## Crash Count By Accident Type
+
+```{r}
+library(ggplot2)
+crash_count <- crash_sf |>
+  group_by(Reporttype) |>
+  summarize(Count = n())
+ggplot(crash_count, aes(Reporttype, y = Count)) +
+  geom_bar(stat = "identity", fill = "lavender", color = "black") +
+  labs(title = "Number of Crashes by Type",
+       x = "Crash Type",
+       y = "Number of Crashes") +
+  theme_minimal() 
+```
+
+## Crash Count By County
+
+```{r}
+# Summarize the data by County
+county_crashes <- crash_sf |>
+  group_by(CountyOfCrash) |>
+  summarize(Total_crashes = n()) |>
+  arrange(desc(Total_crashes))
+ggplot(county_crashes, aes(x = CountyOfCrash, y = Total_crashes)) +
+  geom_bar(stat = "identity", fill = "skyblue", color = "black") +
+  labs(title = "Number of Crashes by County",
+       x = "County",
+       y = "Number of Crashes") +
+  theme_minimal() +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1)) 
+```
+
+## Crash Count By Fatal Crashes
+
+```{r}
+ fatal_county <- crash_sf |>
+  filter(Reporttype == "Fatal Crash") |>
+  group_by(CountyOfCrash) |>
+  summarize(Total_fatal_accidents = n()) |>
+  arrange(desc(Total_fatal_accidents))
+ggplot(fatal_county, aes(x = CountyOfCrash, y = Total_fatal_accidents)) +
+  geom_bar(stat = "identity", fill = "darkred", color = "black") +
+  labs(title = "Number of Fatal Crashes by County",
+       x = "County",
+       y = "Number of Fatal Crashes") +
+  theme_minimal() +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1))
+```
+
+## Crash Count By Injury Crashes
+
+```{r}
+injury_county <- crash_sf |>
+  filter(Reporttype == "Injury Crash") |>
+  group_by(CountyOfCrash) |>
+  summarize(Total_injury_accidents = n()) |>
+  arrange(desc(Total_injury_accidents))
+ggplot(injury_county, aes(x = CountyOfCrash, y = Total_injury_accidents)) +
+  geom_bar(stat = "identity", fill = "blue", color = "black") +
+  labs(title = "Number of Injury Crashes by County",
+       x = "County",
+       y = "Number of Injury Crashes") +
+  theme_minimal() +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1))
+```
+
+## Crash Count By Property Damage Crashes
+
+```{r}
+pd_county <- crash_sf |>
+  filter(Reporttype == "Property Damage Crash") |>
+  group_by(CountyOfCrash) |>
+  summarize(Total_pd_accidents = n()) |>
+  arrange(desc(Total_pd_accidents))
+ggplot(pd_county, aes(x = CountyOfCrash, y = Total_pd_accidents)) +
+  geom_bar(stat = "identity", fill = "lightgreen", color = "black") +
+  labs(title = "Number of Property Damage Crashes by County",
+       x = "County",
+       y = "Number of Property Damage Crashes") +
+  theme_minimal() +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1))
+```
+
+## Crash Trend Over the Months of 2023
+
+```{r}
+library(lubridate)
+# Extract month and year from 'Crashdate'
+crash_sf <- crash_sf |>
+  mutate(Year = year(Crashdate),
+         Month = month(Crashdate, label = TRUE),
+         Day = wday(Crashdate, label = TRUE, abbr = FALSE))
+
+# Group by 'CountyOfCrash', 'Year', 'Month', and 'Reporttype'
+monthly_crash_count <- crash_sf |>
+  group_by(CountyOfCrash, Year, Month, Reporttype) |>
+  summarize(Count = n())
+# Plot the line graph
+ggplot(monthly_crash_count, aes(x = Month, y = Count, color = Reporttype)) +
+  geom_point() +
+  facet_wrap(~CountyOfCrash, scales = "free_y") +
+  labs(title = "Accident Trend in Each County Over the Months",
+       x = "Month",
+       y = "Number of Accidents",
+       color = "Crash Type") +
+  theme_minimal()+
+  theme(axis.text.x = element_text(angle = 45, hjust = 1))
+```
+
+## Crash Trend Over the Months 
+
+- In Four Counties with the highest Crash reports
+
+```{r}
+# Group by 'CountyOfCrash', 'Year', 'Month', and 'Reporttype' for Counties with high crash count
+high_crash_county <- crash_sf |>
+  filter(CountyOfCrash == "Prince George's" | CountyOfCrash == "Baltimore City"| CountyOfCrash == "Baltimore"| CountyOfCrash == "Montgomery") |>
+  group_by(CountyOfCrash, Year, Month, Reporttype) |>
+  summarize(Count = n())
+ggplot(high_crash_county, aes(x = Month, y = Count, color = Reporttype)) +
+  geom_point() +
+  facet_wrap(~CountyOfCrash, scales = "free_y") +
+  labs(title = "Accident Trend in Counties (with highest reports) Over the Months",
+       x = "Month",
+       y = "Number of Accidents",
+       color = "Crash Type") +
+  theme_minimal() +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1))
+```
+
+## Fatal Crash Trend Over a Week
+
+```{r}
+daily_fatal_crash <- crash_sf |>
+  filter(Reporttype == "Fatal Crash") |>
+  group_by(Day, Month, Reporttype) |>
+  summarize(Count = n())
+
+# Plot the variation of fatal accidents by days
+ggplot(daily_fatal_crash, aes(x = Day))+
+  geom_bar(fill = "darkblue") +
+  labs(title = "Variation of Fatal Accidents by Days",
+       x = "Day of the Month",
+       y = "Number of Fatal Accidents") +
+  theme_minimal()
+
+```
+
+## Fatal Crash Trend Over a Week in Prince George's County
+
+```{r}
+daily_crash_count <- crash_sf |>
+  filter(Reporttype == "Fatal Crash", CountyOfCrash == "Prince George's") |>
+  group_by(CountyOfCrash, Day, Month, Reporttype) |>
+  summarize(Count = n())
+
+# Plot the variation of fatal accidents by days
+ggplot(daily_crash_count, aes(x = Day))+
+  geom_bar(fill = "maroon") +
+  labs(title = "Variation of Fatal Accidents in Prince George's County by Days",
+       x = "Day of the Month",
+       y = "Number of Fatal Accidents") +
+  theme_minimal()
+```
+
+## Fatal Crash Trend Over a Week in Baltimore County
+
+```{r}
+daily_crash_count <- crash_sf |>
+  filter(Reporttype == "Fatal Crash", CountyOfCrash == "Baltimore") |>
+  group_by(CountyOfCrash, Day, Month, Reporttype) |>
+  summarize(Count = n())
+
+# Plot the variation of fatal accidents by days
+ggplot(daily_crash_count, aes(x = Day))+
+  geom_bar(fill = "brown") +
+  labs(title = "Variation of Fatal Accidents in Baltimore County by Days",
+       x = "Day of the Month",
+       y = "Number of Fatal Accidents") +
+  theme_minimal()
+```
+
+## Mapping of the Crash Points
+
+```{r}
+plot_maryland_highways <- function(sf1, sf2, sf3, mapping1 = aes(), mapping2 = aes(), ...) {
+  sf3 |>
+    ggplot() +
+    geom_sf(data = sf3, mapping = mapping1, ...) +  
+    geom_sf(data = sf2, mapping = mapping2, color = "gray") +
+    geom_sf(data = sf1, mapping = aes(color = 'Maryland Borders'), color = "black", alpha = 0) +
+    theme_void()
+
+}
+
+map <- plot_maryland_highways(sf1 = maryland,
+                       sf2 = md_highways,
+                       sf3 = crash_sf,
+                       mapping1 = aes(color = Reporttype),
+                       mapping2 = aes(color = Highway))
+
+plotly::ggplotly(map)
+```
+
+## Mapping of the Fatal Crash Points
+
+```{r}
+fatal_crash <- crash_sf |>
+  filter(Reporttype == "Fatal Crash")
+#fatal_crash
+map_fatal <- plot_maryland_highways(sf1 = maryland,
+                       sf2 = md_highways,
+                       sf3 = fatal_crash,
+                       mapping1 = aes(color = Reporttype),
+                       mapping2 = aes(color = "Highway"))
+map_fatal
+```
+
+# Insights
+##
+### Prince George's County
+
+Highest Number of -
+
+- Total Crashes (Baltimore County close second)
+- Fatal Accidents
+- Property Damage Accidents
+
+Higher fatal crashes occur on Sundays and Mondays
+
+
+### Baltimore City County
+
+Highest Number of Injury Crashes
+
+Higher fatal crashes occur on Sundays and relatively; Lesser on Tuesdays and Thursdays
+
+##
+
+### General Trend in Crashes
+
+- There is a dip in number of accidents during the Summer and Fall months (from June to Sept) in most counties
+
+#### Exceptions
+
+Queen Anne's, Somerset, and Worcester
+
+Kent County has the least number of overall as well as the least crashes in all accident types
+
+Less fatal crashes occur on Wednesdays as compared to other days of the week 
+
+## Mapping
+
+-   The map gives the distribution of the accident points in Maryland.
+
+-   The map of fatal accident points give a denser distribution along the marked highways.
+
+
+## Limitations and Future Work
+
+-   The mapping did not turn out to give a useful indicator of accident zones due to the amassing of points.
+
+-   Due to the huge file size of the open street data objects, only one key-value pair for the highway key was used for plotting.
+
+-   The mapping can be limited just to the highways by joining the two data sets based on the geometry column such that the accident points in the highway are only used for mapping.
+
+-   The mapping can be further extended to do more spatial statistics to find accident-prone zones that can be used to give precaution signals and notification in driver's device
+
+
+## Peek in to the Repository
+
+::: r-fit-text
+Links and brief descriptions to the project repository.
+
+Project data
+
+:   [Data storage](data/) All the data extraction codes are given with the Data Source
+
+Project code
+
+:   [Project Quarto Document](Project.qmd), [Project Proposal](Project_Proposal.qmd), [R project](project.Rproj)
+
+Output files
+
+:   [Analysis Images and Maps](images/)
+
+README
+
+:   [ReadMe](readme.md)
+:::
