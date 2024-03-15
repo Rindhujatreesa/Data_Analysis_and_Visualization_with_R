@@ -1,0 +1,1 @@
+Click on the [Analyzing and Visualizing Motor Accidents in Maryland](https://github.com/Rindhujatreesa/Data_Analysis_and_Visualization_with_R/tree/main/Analyzing_and_Visualizing_Motor_Accidents_in_Maryland) to have a look at my R expertise! 
